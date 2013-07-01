@@ -13,13 +13,13 @@ require 'jeweler'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
   gem.name = "fluent-plugin-couchbase"
-  gem.homepage = "http://github.com/obieq/fluent-plugin-couchbase"
+  gem.homepage = "https://github.com/atware/fluent-plugin-couchbase"
   gem.license = "MIT"
   gem.summary = %Q{Fluent output plugin for Couchbase 2.0}
   gem.description = %Q{Fluent output plugin for Couchbase 2.0}
-  gem.email = "quelland@gmail.com"
-  gem.authors = ["obie quelland"]
+  gem.authors = ["atWare, Inc."]
   # dependencies defined in Gemfile
+  gem.files = Rake::FileList.new('lib/**/*.rb', 'spec/**/*_spec.rb')
 end
 Jeweler::RubygemsDotOrgTasks.new
 

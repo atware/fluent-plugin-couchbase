@@ -1,3 +1,4 @@
+# vim: fileencoding=utf-8 ts=2 sts=2 sw=2 et si ai :
 require 'spec_helper'
 require 'couchbase'
 Fluent::Test.setup
@@ -6,6 +7,8 @@ SPEC_HOSTNAME = 'localhost'
 SPEC_PORT = 8091
 SPEC_POOL_NAME = 'default'
 SPEC_BUCKET_NAME = 'default'
+SPEC_SECURE_BUCKET_NAME = 'secure'
+SPEC_SECURE_BUCKET_PASSWORD = 'secret'
 SPEC_TTL = 10
 SPEC_INCLUDE_TTL_IN_DOCUMENT = true
 
@@ -14,6 +17,16 @@ CONFIG = %[
   port #{SPEC_PORT}
   pool #{SPEC_POOL_NAME}
   bucket #{SPEC_BUCKET_NAME}
+  ttl #{SPEC_TTL}
+  include_ttl #{SPEC_INCLUDE_TTL_IN_DOCUMENT}
+]
+
+CONFIG_WITH_PASSWORD = %[
+  hostname #{SPEC_HOSTNAME}
+  port #{SPEC_PORT}
+  pool #{SPEC_POOL_NAME}
+  bucket #{SPEC_SECURE_BUCKET_NAME}
+  password #{SPEC_SECURE_BUCKET_PASSWORD}
   ttl #{SPEC_TTL}
   include_ttl #{SPEC_INCLUDE_TTL_IN_DOCUMENT}
 ]
@@ -75,11 +88,15 @@ describe Fluent::CouchbaseOutput do
 
     it 'should format' do
       driver.configure(CONFIG)
-      time = Time.now.to_i
-      record = {:key => generate_document_key, :tag => 'test', :time => time, :a => 1}
+      time = Time.mktime(2013, 5, 1, 1, 2, 3)
+      record = {:a => 1}
+      record_expected = record.clone
+      record_expected[:tag] = 'test'
+      record_expected[:time] = time.to_i
 
+      Time.stub!(:now).and_return(time)
       driver.emit(record)
-      driver.expect_format(record.to_msgpack)
+      driver.expect_format(record_expected.to_msgpack)
       driver.run
     end
 
@@ -91,5 +108,14 @@ describe Fluent::CouchbaseOutput do
       end
 
     end # context writing
+
+    context 'writing with password' do
+
+      it 'should write' do
+        driver.configure(CONFIG_WITH_PASSWORD)
+        write(driver)
+      end
+
+    end # context writing with password
   end # context logging
 end # CouchbaseOutput

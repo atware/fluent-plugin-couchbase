@@ -1,7 +1,9 @@
+# vim: fileencoding=utf-8 ts=2 sts=2 sw=2 et si ai :
 require 'couchbase'
 require 'msgpack'
 require 'json'
 require 'active_support/core_ext/hash'
+require 'digest/md5'
 
 module Fluent
 
@@ -12,11 +14,12 @@ module Fluent
     config_param :port,          :integer
     config_param :pool,          :string
     config_param :bucket,        :string
+    config_param :password,      :string, :default => nil
     config_param :ttl,           :integer, :default => 0
     config_param :include_ttl,   :bool, :default => false
 
     def connection
-      @connection ||= get_connection(self.hostname, self.port, self.pool, self.bucket)
+      @connection ||= get_connection(self.hostname, self.port, self.pool, self.bucket, self.password)
     end
 
     def configure(conf)
@@ -40,6 +43,8 @@ module Fluent
     end
 
     def format(tag, time, record)
+      record['tag'] = tag
+      record['time'] = time
       record.to_msgpack
     end
 
@@ -49,17 +54,29 @@ module Fluent
         record[:ttl] = self.ttl if self.include_ttl
 
         # persist
-        connection[record.delete('key'), :ttl => self.ttl] = record
+        connection[generate_id(record), :ttl => self.ttl] = record
       }
     end
 
     private
 
-    def get_connection(hostname, port, pool, bucket)
-      Couchbase.connect(:hostname => hostname,
-                        :port => port,
-                        :pool => pool,
-                        :bucket => bucket)
+    def generate_id(record)
+      Digest::MD5.hexdigest(record.to_s)
+    end
+
+    def get_connection(hostname, port, pool, bucket, password = nil)
+      if password.nil?
+        Couchbase.connect(:hostname => hostname,
+                          :port => port,
+                          :pool => pool,
+                          :bucket => bucket)
+      else
+        Couchbase.connect(:hostname => hostname,
+                          :port => port,
+                          :pool => pool,
+                          :bucket => bucket,
+                          :password => password)
+      end
     end
 
   end
