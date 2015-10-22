@@ -4,6 +4,7 @@ require 'couchbase'
 Fluent::Test.setup
 
 SPEC_HOSTNAME = 'localhost'
+SPEC_NODE_LIST = ['localhost']
 SPEC_PORT = 8091
 SPEC_POOL_NAME = 'default'
 SPEC_BUCKET_NAME = 'default'
@@ -21,8 +22,27 @@ CONFIG = %[
   include_ttl #{SPEC_INCLUDE_TTL_IN_DOCUMENT}
 ]
 
+CONFIG_NODE_LIST = %[
+  node_list #{SPEC_NODE_LIST}
+  port #{SPEC_PORT}
+  pool #{SPEC_POOL_NAME}
+  bucket #{SPEC_BUCKET_NAME}
+  ttl #{SPEC_TTL}
+  include_ttl #{SPEC_INCLUDE_TTL_IN_DOCUMENT}
+]
+
 CONFIG_WITH_PASSWORD = %[
   hostname #{SPEC_HOSTNAME}
+  port #{SPEC_PORT}
+  pool #{SPEC_POOL_NAME}
+  bucket #{SPEC_SECURE_BUCKET_NAME}
+  password #{SPEC_SECURE_BUCKET_PASSWORD}
+  ttl #{SPEC_TTL}
+  include_ttl #{SPEC_INCLUDE_TTL_IN_DOCUMENT}
+]
+
+CONFIG_NODE_LIST_WITH_PASSWORD = %[
+  node_list #{SPEC_NODE_LIST}
   port #{SPEC_PORT}
   pool #{SPEC_POOL_NAME}
   bucket #{SPEC_SECURE_BUCKET_NAME}
@@ -43,9 +63,10 @@ describe Fluent::CouchbaseOutput do
 
   context 'configuring' do
 
-    it 'should be properly configured' do
+    it 'should be properly configured with hostname' do
       driver.configure(CONFIG)
       driver.instance.hostname.should eq(SPEC_HOSTNAME)
+      driver.instance.node_list.should eq(nil)
       driver.instance.port.should eq(SPEC_PORT)
       driver.instance.pool.should eq(SPEC_POOL_NAME)
       driver.instance.bucket.should eq(SPEC_BUCKET_NAME)
@@ -53,9 +74,48 @@ describe Fluent::CouchbaseOutput do
       driver.instance.include_ttl.should eq(SPEC_INCLUDE_TTL_IN_DOCUMENT)
     end
 
+    it 'should be properly configured with hostname and password' do
+      driver.configure(CONFIG_WITH_PASSWORD)
+      driver.instance.hostname.should eq(SPEC_HOSTNAME)
+      driver.instance.node_list.should eq(nil)
+      driver.instance.port.should eq(SPEC_PORT)
+      driver.instance.pool.should eq(SPEC_POOL_NAME)
+      driver.instance.bucket.should eq(SPEC_SECURE_BUCKET_NAME)
+      driver.instance.password.should eq(SPEC_SECURE_BUCKET_PASSWORD)
+      driver.instance.ttl.should eq(SPEC_TTL)
+      driver.instance.include_ttl.should eq(SPEC_INCLUDE_TTL_IN_DOCUMENT)
+    end
+
+    it 'should be properly configured with node_list' do
+      driver.configure(CONFIG_NODE_LIST)
+      driver.instance.hostname.should eq(nil)
+      driver.instance.node_list.should eq(SPEC_NODE_LIST)
+      driver.instance.port.should eq(SPEC_PORT)
+      driver.instance.pool.should eq(SPEC_POOL_NAME)
+      driver.instance.bucket.should eq(SPEC_BUCKET_NAME)
+      driver.instance.ttl.should eq(SPEC_TTL)
+      driver.instance.include_ttl.should eq(SPEC_INCLUDE_TTL_IN_DOCUMENT)
+    end
+
+    it 'should be properly configured with node_list and password' do
+      driver.configure(CONFIG_NODE_LIST_WITH_PASSWORD)
+      driver.instance.hostname.should eq(nil)
+      driver.instance.node_list.should eq(SPEC_NODE_LIST)
+      driver.instance.port.should eq(SPEC_PORT)
+      driver.instance.pool.should eq(SPEC_POOL_NAME)
+      driver.instance.bucket.should eq(SPEC_SECURE_BUCKET_NAME)
+      driver.instance.password.should eq(SPEC_SECURE_BUCKET_PASSWORD)
+      driver.instance.ttl.should eq(SPEC_TTL)
+      driver.instance.include_ttl.should eq(SPEC_INCLUDE_TTL_IN_DOCUMENT)
+    end
+
     describe 'exceptions' do
       it 'should raise an exception if hostname is not configured' do
         expect { driver.configure(CONFIG.gsub("hostname", "invalid_config_name")) }.to raise_error Fluent::ConfigError
+      end
+
+      it 'should raise an exception if node_list is not configured' do
+        expect { driver.configure(CONFIG_NODE_LIST.gsub("node_list", "invalid_config_name")) }.to raise_error Fluent::ConfigError
       end
 
       it 'should raise an exception if port is not configured' do
@@ -94,7 +154,7 @@ describe Fluent::CouchbaseOutput do
       record_expected[:tag] = 'test'
       record_expected[:time] = time.to_i
 
-      Time.stub!(:now).and_return(time)
+      allow(Time).to receive(:now).and_return(time)
       driver.emit(record)
       driver.expect_format(record_expected.to_msgpack)
       driver.run

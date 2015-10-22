@@ -24,7 +24,7 @@ module Helpers
     test_times = [time1, time2]
 
     test_records.each_with_index do |rec, idx|
-      Time.stub!(:now).and_return(test_times[idx])
+      allow(Time).to receive(:now).and_return(test_times[idx])
       driver.emit(rec)
     end
     driver.run # persists to couchbase

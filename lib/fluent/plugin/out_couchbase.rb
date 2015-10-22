@@ -10,7 +10,8 @@ module Fluent
   class CouchbaseOutput < BufferedOutput
     Fluent::Plugin.register_output('couchbase', self)
 
-    config_param :hostname,      :string
+    config_param :hostname,      :string, :default => nil
+    config_param :node_list,     :array, :default => nil
     config_param :port,          :integer
     config_param :pool,          :string
     config_param :bucket,        :string
@@ -19,14 +20,14 @@ module Fluent
     config_param :include_ttl,   :bool, :default => false
 
     def connection
-      @connection ||= get_connection(self.hostname, self.port, self.pool, self.bucket, self.password)
+      @connection ||= get_connection
     end
 
     def configure(conf)
       super
 
       # perform validations
-      raise ConfigError, "'hostname' is required by Couchbase output (ex: localhost)" unless self.hostname
+      raise ConfigError, "either 'hostname' or 'node_list' is required by Couchbase output (ex: localhost)" unless self.hostname or self.node_list
       raise ConfigError, "'port' is required by Couchbase output (ex: 8091)" unless self.port
       raise ConfigError, "'pool' is required by Couchbase output (ex: default)" unless self.pool
       raise ConfigError, "'bucket' is required by Couchbase output (ex: default)" unless self.bucket
@@ -54,7 +55,11 @@ module Fluent
         record[:ttl] = self.ttl if self.include_ttl
 
         # persist
-        connection[generate_id(record), :ttl => self.ttl] = record
+        if record.has_key?('key')
+          connection[record.delete('key'), :ttl => self.ttl] = record
+        else
+          connection[generate_id(record), :ttl => self.ttl] = record
+        end
       }
     end
 
@@ -64,18 +69,19 @@ module Fluent
       Digest::MD5.hexdigest(record.to_s)
     end
 
-    def get_connection(hostname, port, pool, bucket, password = nil)
-      if password.nil?
-        Couchbase.connect(:hostname => hostname,
-                          :port => port,
-                          :pool => pool,
-                          :bucket => bucket)
-      else
-        Couchbase.connect(:hostname => hostname,
-                          :port => port,
-                          :pool => pool,
-                          :bucket => bucket,
-                          :password => password)
+    def get_connection
+      if self.hostname
+        if password.nil?
+          Couchbase.connect(:hostname => self.hostname, :port => self.port, :pool => self.pool, :bucket => self.bucket)
+        else
+          Couchbase.connect(:hostname => self.hostname, :port => self.port, :pool => self.pool, :bucket => self.bucket, :password => self.password)
+        end
+      elsif self.node_list
+        if password.nil?
+          Couchbase.connect(:node_list => self.node_list, :port => self.port, :pool => self.pool, :bucket => self.bucket)
+        else
+          Couchbase.connect(:node_list => self.node_list, :port => self.port, :pool => self.pool, :bucket => self.bucket, :password => self.password)
+        end
       end
     end
 
